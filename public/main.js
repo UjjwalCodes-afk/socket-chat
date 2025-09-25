@@ -11,34 +11,49 @@ const messageTone = new Audio('/message-tone.mp3');
 // Track typing timeout
 let typingTimeout;
 
+// Store old messages silently
+let oldMessages = [];
+
+// Submit message
 messageForm.addEventListener('submit', (e) => {
     e.preventDefault();
     sendMessage();
 });
 
+// Update total clients
 socket.on('clients-total', (data) => {
     clientsTotal.innerText = `Total Clients : ${data}`;
 });
 
+// 🔹 Load previous messages silently
+socket.on('load-messages', (messages) => {
+    oldMessages = messages; // store silently
+});
+
+// Send message
 function sendMessage() {
     if (messageInput.value.trim() === '') return;
 
     const data = {
         name: nameInput.value,
         message: messageInput.value,
-        dateTime: new Date()
+        dateTime: new Date(),
+        roomId: "general" // 🔹 default room, or get dynamically
     };
+    
 
     socket.emit('message', data);
     addMessageToUi(true, data);
     messageInput.value = '';
 }
 
+// Receive new messages from other users
 socket.on('chat-message', (data) => {
     messageTone.play();
     addMessageToUi(false, data);
 });
 
+// Add message to UI
 function addMessageToUi(isOwnMessage, data) {
     clearFeedBack();
     const element = `
@@ -57,7 +72,7 @@ function scrollToBottom() {
     messageContainer.scrollTo(0, messageContainer.scrollHeight);
 }
 
-// 🔹 Typing indicator
+// Typing indicator
 messageInput.addEventListener('input', () => {
     socket.emit('feedback', {
         feedback: `${nameInput.value} is typing...`
@@ -93,4 +108,13 @@ function clearFeedBack() {
     if (feedbackElement) {
         feedbackElement.remove();
     }
+}
+
+// 🔹 Optional: Button to show old messages
+const loadOldBtn = document.getElementById('load-old');
+if (loadOldBtn) {
+    loadOldBtn.addEventListener('click', () => {
+        oldMessages.forEach(msg => addMessageToUi(false, msg));
+        oldMessages = []; // clear after showing
+    });
 }
